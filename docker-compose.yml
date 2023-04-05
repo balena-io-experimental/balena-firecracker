@@ -1,0 +1,15 @@
+version: "2.4"
+
+services:
+  firecracker:
+    build: .
+    privileged: true
+    network_mode: host
+    tmpfs:
+      - /tmp
+      - /var/run
+    volumes:
+      - downloads:/downloads
+
+volumes:
+  downloads: {}

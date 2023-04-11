@@ -1,6 +1,6 @@
 # balena-firecracker
 
-Run Firecracker virtual machines on balenaOS
+Run Docker container images as Firecracker virtual machines on balenaOS
 
 ## What is Firecracker?
 
@@ -10,6 +10,9 @@ Run Firecracker virtual machines on balenaOS
 
 The main goal of this project is to create Firecracker virtual machines on a balenaOS host
 from inside a privileged service container.
+
+Additionally, the rootfs for the VM should be created from an existing Docker container image,
+downloaded and converted to raw format.
 
 ## Architecture & OS
 

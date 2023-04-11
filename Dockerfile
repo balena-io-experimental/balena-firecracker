@@ -1,30 +1,48 @@
-FROM debian:bullseye-slim
+FROM golang:1.20.3-alpine3.17 AS eget
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install --no-install-recommends -y \
+# hadolint ignore=DL3018
+RUN apk add --no-cache \
+    build-base \
     ca-certificates \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+    git
 
 WORKDIR /app
 
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG CGO=0
+
+RUN git clone -n https://github.com/zyedidia/eget . && \
+    git checkout --quiet 760f5151eb17fbd1bb592bce7cce57cf9657ce7d && \
+    make build
+
+FROM alpine:3.17
+
+# hadolint ignore=DL3018
+RUN apk add --no-cache \
+    ca-certificates \
+    docker-cli \
+    git
+
+WORKDIR /app
+
+COPY --from=eget /app/eget /usr/local/bin/eget
+
+ARG TARGETARCH
+
+COPY ${TARGETARCH:-amd64}/* ./
+
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 ARG FIRECRACKER_TAG=v1.3.1
-ARG FIRECRACKER_SHA256_x86_64=55f4e8dd3693aaa0584f6fc2656d05e6d197693e02c8170a0673f95ea73504b2
-ARG FIRECRACKER_SHA256_aarch64=3832016b8f365fc6cd851caf7662061a2ffa0596227f4d9c7fcb4059845c2369
 
-RUN curl -fsSL -o firecracker.tgz "https://github.com/firecracker-microvm/firecracker/releases/download/${FIRECRACKER_TAG}/firecracker-${FIRECRACKER_TAG}-$(uname -m).tgz" \
-    && sha256="FIRECRACKER_SHA256_$(uname -m)" \
-    && echo "${!sha256}  firecracker.tgz" | sha256sum -c - \
-    && tar -xzf firecracker.tgz --strip-components=1 \
-    && for bin in *-$(uname -m) ; do install -v "${bin}" "/usr/local/bin/$(echo "${bin}" | sed -rn 's/(.+)-.+-.+/\1/p')" ; done \
-    && rm firecracker.tgz
+RUN eget firecracker-microvm/firecracker --tag ${FIRECRACKER_TAG} && \
+    for bin in /usr/local/bin/*-*-* ; \
+    do ln -sf "$(basename "${bin}")" "/usr/local/bin/$(basename "${bin}" | rev | cut -d'-' -f3- | rev)" ; \
+    done
 
-COPY entry.sh config_*.json ./
+RUN firecracker --version && \
+    jailer --version
+
+COPY entry.sh ./
 
 RUN chmod +x entry.sh
 

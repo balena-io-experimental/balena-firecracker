@@ -7,11 +7,11 @@ set -eu
 
 # Get a kernel and rootfs
 arch="$(uname -m)"
-dest_kernel="/downloads/vmlinux.bin"
-dest_rootfs="/downloads/rootfs.ext4"
+dest_kernel="/files/vmlinux.bin"
+dest_rootfs="/files/rootfs.ext4"
 
-firecracker_socket="/var/run/firecracker.socket"
-firecracker_config="/app/config_${arch}.json"
+firecracker_socket="/tmp/firecracker.sock"
+firecracker_config="/app/config.json"
 
 case "${arch}" in
     x86_64)

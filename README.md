@@ -18,6 +18,10 @@ downloaded and converted to raw format.
 
 Firecracker supports x86_64 and aarch64 Linux, see [specific supported kernels](https://github.com/firecracker-microvm/firecracker/blob/main/docs/kernel-policy.md).
 
+The provided Docker image must have an init system in place in order to serve as a rootfs.
+
+> The minimal init system would be just an ELF binary, placed at `/sbin/init`. The final step in the Linux boot process executes `/sbin/init` and expects it to never exit. More complex init systems build on top of this, providing service configuration files, startup / shutdown scripts for various services, and many other features.
+
 ### KVM
 
 Firecracker requires [the KVM Linux kernel module](https://www.linux-kvm.org/).
@@ -40,4 +44,5 @@ irqbypass              16384  1 kvm
 
 - <https://actuated.dev/blog/kvm-in-github-actions>
 - <https://github.com/firecracker-microvm/firecracker/blob/main/docs/getting-started.md>
+- <https://github.com/firecracker-microvm/firecracker/blob/main/docs/rootfs-and-kernel-setup.md>
 - <https://github.com/skatolo/nested-firecracker>

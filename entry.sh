@@ -2,40 +2,44 @@
 
 # https://actuated.dev/blog/kvm-in-github-actions
 # https://github.com/firecracker-microvm/firecracker/blob/main/docs/getting-started.md
+# https://github.com/firecracker-microvm/firecracker/blob/main/docs/rootfs-and-kernel-setup.md
 
 set -eu
-
-# Get a kernel and rootfs
-arch="$(uname -m)"
-dest_kernel="/files/vmlinux.bin"
-dest_rootfs="/files/rootfs.ext4"
 
 firecracker_socket="/tmp/firecracker.sock"
 firecracker_config="/app/config.json"
 
-case "${arch}" in
-    x86_64)
-        kernel="${KERNEL_x86_64:-https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/x86_64/kernels/vmlinux.bin}"
-        rootfs="${ROOTFS_x86_64:-https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/x86_64/rootfs/bionic.rootfs.ext4}"
-        ;;
-    aarch64)
-        kernel="${KERNEL_aarch64:-https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/aarch64/kernels/vmlinux.bin}"
-        rootfs="${ROOTFS_aarch64:-https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/aarch64/rootfs/bionic.rootfs.ext4}"
-        ;;
-    *)
-        echo "Firecracker does not support ${arch}!"
-        exit 1
-        ;;
-esac
+kernel_file="/files/vmlinux.bin"
+rootfs_file="/files/rootfs.ext4"
+rootfs_mount="/tmp/rootfs"
 
-if [ ! -f "${dest_kernel}" ]; then
-    echo "Downloading ${kernel}..."
-    curl -fsSL -o "${dest_kernel}" "${kernel}"
+KERNEL_SOURCE="${KERNEL_SOURCE:-"https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/$(uname -m)/kernels/vmlinux.bin"}"
+ROOTFS_SOURCE="${ROOTFS_SOURCE:-"docker.io/library/ubuntu:latest"}"
+ROOTFS_SIZE="${ROOTFS_SIZE:-"1024M"}"
+
+mkdir -p /files
+
+# for now always force a new rootfs and kernel download
+rm -vf /files/*
+
+if [ ! -f "${rootfs_file}" ]; then
+    echo "Creating rootfs ${rootfs_file}..."
+    truncate -s "${ROOTFS_SIZE}" "${rootfs_file}"
+    mkfs.ext4 -q "${rootfs_file}"
+
+    mkdir -p "${rootfs_mount}"
+    mount -v "${rootfs_file}" "${rootfs_mount}"
+
+    docker pull "${ROOTFS_SOURCE}"
+    docker export "$(docker create --init "${ROOTFS_SOURCE}")" | tar x -C "${rootfs_mount}"
+
+    echo "Unmounting rootfs ${rootfs_file}..."
+    umount "${rootfs_mount}"
 fi
 
-if [ ! -f "${dest_rootfs}" ]; then
-    echo "Downloading ${rootfs}..."
-    curl -fsSL -o "${dest_rootfs}" "${rootfs}"
+if [ ! -f "${kernel_file}" ]; then
+    echo "Downloading kernel ${KERNEL_SOURCE}..."
+    curl -fsSL -o "${kernel_file}" "${KERNEL_SOURCE}"
 fi
 
 echo "Starting firecracker"

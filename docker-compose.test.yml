@@ -1,0 +1,12 @@
+version: "2.4"
+
+services:
+  sut:
+    build: .
+    image: localhost:5000/sut
+    privileged: true
+    tmpfs:
+      - /tmp
+      - /files
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

@@ -19,16 +19,21 @@ FROM alpine:3.17
 # hadolint ignore=DL3018
 RUN apk add --no-cache \
     ca-certificates \
+    curl \
     docker-cli \
+    e2fsprogs \
+    file \
     git
 
 WORKDIR /app
 
 COPY --from=eget /app/eget /usr/local/bin/eget
 
-ARG TARGETARCH
+COPY x86_64/ ./x86_64/
+COPY aarch64/ ./aarch64/
 
-COPY ${TARGETARCH:-amd64}/* ./
+RUN ln -sf "$(uname -m)"/config.json config.json \
+    && ln -sf "$(uname -m)"/eget.toml eget.toml
 
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
@@ -39,8 +44,8 @@ RUN eget firecracker-microvm/firecracker --tag ${FIRECRACKER_TAG} && \
     do ln -sf "$(basename "${bin}")" "/usr/local/bin/$(basename "${bin}" | rev | cut -d'-' -f3- | rev)" ; \
     done
 
-RUN firecracker --version && \
-    jailer --version
+RUN firecracker --version \
+    && jailer --version
 
 COPY entry.sh ./
 

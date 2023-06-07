@@ -54,6 +54,19 @@ RUN ./tools/release.sh --libc musl --profile release && \
 
 ###############################################
 
+FROM alpine:3.17 AS kernel
+
+WORKDIR /opt
+
+# hadolint ignore=DL3018
+RUN apk add --no-cache \
+    ca-certificates \
+    curl
+
+RUN curl -fsSL "https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/$(uname -m)/kernels/vmlinux.bin" -O
+
+###############################################
+
 FROM alpine:3.17
 
 # hadolint ignore=DL3018
@@ -75,6 +88,7 @@ RUN firecracker --version && \
     firecracker-ctr --version && \
     jailer --version
 
+COPY --from=kernel /opt/vmlinux.bin /var/lib/firecracker-containerd/runtime/vmlinux.bin
 COPY --from=rootfs /containerd/tools/image-builder/rootfs.img /var/lib/firecracker-containerd/runtime/default-rootfs.img
 
 COPY entry.sh ./

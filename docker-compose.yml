@@ -6,10 +6,8 @@ services:
     privileged: true
     tmpfs:
       - /tmp
-    volumes:
-      - files:/files
-    labels:
-      io.balena.features.balena-socket: 1
+      - /run
+      - /var/run
 
 volumes:
   files: {}

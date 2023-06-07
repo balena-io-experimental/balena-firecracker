@@ -7,6 +7,5 @@ services:
     privileged: true
     tmpfs:
       - /tmp
-      - /files
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /run
+      - /var/run

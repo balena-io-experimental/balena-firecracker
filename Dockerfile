@@ -71,6 +71,7 @@ FROM alpine:3.17
 
 # hadolint ignore=DL3018
 RUN apk add --no-cache \
+    bash \
     ca-certificates \
     curl \
     docker-cli \
@@ -94,8 +95,8 @@ COPY --from=rootfs /containerd/tools/image-builder/rootfs.img /var/lib/firecrack
 COPY config.toml /etc/firecracker-containerd/config.toml
 COPY runtime.json /etc/containerd/firecracker-runtime.json
 
-COPY entry.sh ./
+COPY entry.sh setup-devmapper.sh ./
 
-RUN chmod +x entry.sh
+RUN chmod +x entry.sh setup-devmapper.sh
 
 CMD [ "/app/entry.sh" ]

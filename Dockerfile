@@ -91,6 +91,9 @@ RUN firecracker --version && \
 COPY --from=kernel /opt/vmlinux.bin /var/lib/firecracker-containerd/runtime/vmlinux.bin
 COPY --from=rootfs /containerd/tools/image-builder/rootfs.img /var/lib/firecracker-containerd/runtime/default-rootfs.img
 
+COPY config.toml /etc/firecracker-containerd/config.toml
+COPY runtime.json /etc/containerd/firecracker-runtime.json
+
 COPY entry.sh ./
 
 RUN chmod +x entry.sh

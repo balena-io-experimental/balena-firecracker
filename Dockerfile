@@ -93,10 +93,11 @@ COPY --from=rootfs /containerd/tools/image-builder/rootfs.img /var/lib/firecrack
 COPY config.toml /etc/firecracker-containerd/config.toml
 COPY runtime.json /etc/containerd/firecracker-runtime.json
 
-COPY entry.sh setup-devmapper.sh ./
+COPY devmapper/ ./devmapper/
+COPY start.sh ./
 
-RUN chmod +x entry.sh setup-devmapper.sh
+RUN chmod +x start.sh devmapper/*.sh
 
 ENTRYPOINT [ "/sbin/tini", "--" ]
 
-CMD [ "/app/entry.sh" ]
+CMD [ "/app/start.sh" ]

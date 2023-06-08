@@ -7,9 +7,11 @@ WORKDIR /containerd
 RUN apk add --no-cache \
     build-base \
     ca-certificates \
+    curl \
     debootstrap \
     git \
-    grep
+    grep \
+    squashfs-tools
 
 # https://github.com/firecracker-microvm/firecracker-containerd
 RUN git clone --recurse-submodules https://github.com/firecracker-microvm/firecracker-containerd.git . && \
@@ -29,18 +31,23 @@ RUN make all && make install
 
 FROM containerd-base AS rootfs
 
-# hadolint ignore=DL3018
-RUN apk add --no-cache \
-    debootstrap \
-    squashfs-tools
-
 WORKDIR /tmp/rootfs
 
 RUN make -C /containerd/tools/image-builder rootfs.img WORKDIR=/tmp/rootfs
 
 ###############################################
 
-FROM public.ecr.aws/firecracker/fcuvm:v55 AS firecracker
+FROM containerd-base AS kernel
+
+WORKDIR /opt
+
+RUN curl -fsSL "https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/$(uname -m)/kernels/vmlinux.bin" -O
+
+###############################################
+
+# https://gallery.ecr.aws/firecracker/fcuvm
+# https://github.com/firecracker-microvm/firecracker/blob/main/tools/devctr/Dockerfile
+FROM public.ecr.aws/firecracker/fcuvm:v60 AS firecracker
 
 WORKDIR /firecracker
 
@@ -54,34 +61,25 @@ RUN ./tools/release.sh --libc musl --profile release && \
 
 ###############################################
 
-FROM alpine:3.17 AS kernel
-
-WORKDIR /opt
-
-# hadolint ignore=DL3018
-RUN apk add --no-cache \
-    ca-certificates \
-    curl
-
-RUN curl -fsSL "https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/$(uname -m)/kernels/vmlinux.bin" -O
-
-###############################################
-
-FROM alpine:3.17
+FROM alpine:3.17 AS runtime
 
 # hadolint ignore=DL3018
 RUN apk add --no-cache \
     bash \
     ca-certificates \
     curl \
-    docker-cli \
+    device-mapper \
     e2fsprogs \
-    file \
-    git
+    losetup \
+    lsblk \
+    pigz \
+    tini \
+    util-linux-misc
 
 WORKDIR /app
 
 COPY --from=containerd /opt/bin/ /usr/local/bin/
+COPY --from=containerd /containerd/tools/ ./tools/
 COPY --from=firecracker /opt/bin/ /usr/local/bin/
 
 RUN firecracker --version && \
@@ -98,5 +96,7 @@ COPY runtime.json /etc/containerd/firecracker-runtime.json
 COPY entry.sh setup-devmapper.sh ./
 
 RUN chmod +x entry.sh setup-devmapper.sh
+
+ENTRYPOINT [ "/sbin/tini", "--" ]
 
 CMD [ "/app/entry.sh" ]

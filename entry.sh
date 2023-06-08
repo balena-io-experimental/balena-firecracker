@@ -9,7 +9,9 @@ set -eu
 mkdir -p /var/lib/firecracker-containerd
 
 # start containerd
-firecracker-containerd --config /etc/firecracker-containerd/config.toml
+firecracker-containerd --config /etc/firecracker-containerd/config.toml &
+
+firecracker-ctr --address /run/firecracker-containerd/containerd.sock run --help
 
 # pull an image
 firecracker-ctr --address /run/firecracker-containerd/containerd.sock images pull \

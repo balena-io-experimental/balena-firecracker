@@ -8,6 +8,3 @@ services:
       - /tmp
       - /run
       - /var/run
-
-volumes:
-  files: {}

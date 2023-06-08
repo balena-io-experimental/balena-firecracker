@@ -11,6 +11,8 @@ RUN apk add --no-cache \
     debootstrap \
     git \
     grep \
+    libseccomp-dev \
+    libseccomp-static \
     squashfs-tools
 
 # https://github.com/firecracker-microvm/firecracker-containerd
@@ -21,19 +23,30 @@ RUN git clone --recurse-submodules https://github.com/firecracker-microvm/firecr
 
 FROM containerd-base AS containerd
 
-ARG CGO=0
+ARG CGO_ENABLED=0
 ARG GO111MODULE=on
 ARG INSTALLROOT=/opt
+ARG STATIC_AGENT=on
 
 RUN make all && make install
 
 ###############################################
 
+FROM containerd-base AS runc
+
+RUN make -C _submodules/runc static
+
+###############################################
+
 FROM containerd-base AS rootfs
 
-WORKDIR /tmp/rootfs
+WORKDIR /containerd/tools/image-builder
 
-RUN make -C /containerd/tools/image-builder rootfs.img WORKDIR=/tmp/rootfs
+COPY --from=containerd /containerd/agent/agent ./files_ephemeral/usr/local/bin/agent
+COPY --from=runc /containerd/_submodules/runc/runc ./files_ephemeral/usr/local/bin/runc
+
+RUN mkdir -p tmp/rootfs && \
+    make rootfs.img
 
 ###############################################
 
@@ -55,9 +68,17 @@ WORKDIR /firecracker
 RUN git clone --recurse-submodules https://github.com/firecracker-microvm/firecracker.git . && \
     git checkout --quiet v1.3.3
 
-RUN ./tools/release.sh --libc musl --profile release && \
-    install -D ./build/cargo_target/*-unknown-linux-musl/release/firecracker /opt/bin/firecracker && \
-    install -D ./build/cargo_target/*-unknown-linux-musl/release/jailer /opt/bin/jailer
+# RUN ./tools/release.sh --libc musl --profile release && \
+#     install -D ./build/cargo_target/"$(uname -m)-unknown-linux-musl"/release/firecracker /opt/bin/firecracker && \
+#     install -D ./build/cargo_target/"$(uname -m)-unknown-linux-musl"/release/jailer /opt/bin/jailer
+
+RUN mkdir -p ./build/cargo_git_registry ./build/cargo_registry
+
+RUN cargo build --release --target "$(uname -m)-unknown-linux-musl" && \
+    install -D ./build/cargo_target/"$(uname -m)-unknown-linux-musl"/release/firecracker /opt/bin/firecracker
+
+RUN cargo build --release --target "$(uname -m)-unknown-linux-musl" -p jailer && \
+    install -D ./build/cargo_target/"$(uname -m)-unknown-linux-musl"/release/jailer /opt/bin/jailer
 
 ###############################################
 
@@ -79,7 +100,7 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 COPY --from=containerd /opt/bin/ /usr/local/bin/
-COPY --from=containerd /containerd/tools/ ./tools/
+# COPY --from=containerd /containerd/tools/ ./tools/
 COPY --from=firecracker /opt/bin/ /usr/local/bin/
 
 RUN firecracker --version && \
@@ -88,7 +109,7 @@ RUN firecracker --version && \
     jailer --version
 
 COPY --from=kernel /opt/vmlinux.bin /var/lib/firecracker-containerd/runtime/vmlinux.bin
-COPY --from=rootfs /containerd/tools/image-builder/rootfs.img /var/lib/firecracker-containerd/runtime/default-rootfs.img
+COPY --from=rootfs /containerd/tools/image-builder/rootfs.img /var/lib/firecracker-containerd/runtime/rootfs.img
 
 COPY config.toml /etc/firecracker-containerd/config.toml
 COPY runtime.json /etc/containerd/firecracker-runtime.json

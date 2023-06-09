@@ -7,6 +7,6 @@ services:
     privileged: true
     tmpfs:
       - /tmp
-      # - /run
+      - /run
       - /var/run
     tty: true

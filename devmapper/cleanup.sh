@@ -1,8 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # https://docs.docker.com/storage/storagedriver/device-mapper-driver/#manage-devicemapper
 # https://github.com/firecracker-microvm/firecracker-containerd/blob/main/docs/getting-started.md
 # https://github.com/kata-containers/kata-containers/blob/main/docs/how-to/how-to-use-kata-containers-with-firecracker.md
+
+set -euo pipefail
 
 DEVMAPPER_ROOT=/var/lib/firecracker-containerd/snapshotter/devmapper
 DEVMAPPER_POOL=fc-dev-thinpool

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # https://docs.docker.com/storage/storagedriver/device-mapper-driver/#manage-devicemapper
 # https://github.com/firecracker-microvm/firecracker-containerd/blob/main/docs/getting-started.md

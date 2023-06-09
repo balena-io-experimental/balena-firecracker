@@ -5,6 +5,6 @@
   "root_drive": "/var/lib/firecracker-containerd/runtime/rootfs.img",
   "cpu_template": "T2",
   "log_fifo": "fc-logs.fifo",
-  "log_levels": ["debug"],
+  "log_levels": ["info"],
   "metrics_fifo": "fc-metrics.fifo"
 }

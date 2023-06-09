@@ -14,4 +14,4 @@ base_image_size = "10GB"
 root_path = "/var/lib/firecracker-containerd/snapshotter/devmapper"
 
 [debug]
-level = "debug"
+level = "info"

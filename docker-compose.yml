@@ -5,7 +5,7 @@ services:
     build: .
     privileged: true
     tmpfs:
-      # - /tmp
+      - /tmp
       - /run
       - /var/run
     tty: true

@@ -95,7 +95,8 @@ RUN apk add --no-cache \
     lsblk \
     pigz \
     tini \
-    util-linux-misc
+    util-linux-misc \
+    uuidgen
 
 WORKDIR /app
 

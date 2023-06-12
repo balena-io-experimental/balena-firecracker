@@ -9,3 +9,8 @@ services:
       - /run
       - /var/run
     tty: true
+    volumes:
+      - data:/var/lib/firecracker-containerd
+
+volumes:
+  data: {}

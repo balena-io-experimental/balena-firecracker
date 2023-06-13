@@ -12,3 +12,5 @@ services:
     tty: true
     volumes:
       - data:/var/lib/firecracker-containerd
+    environment:
+      RUN_IMAGE: docker.io/library/hello-world:latest

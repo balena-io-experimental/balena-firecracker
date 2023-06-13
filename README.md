@@ -1,26 +1,23 @@
 # balena-firecracker
 
-Run Docker container images as Firecracker virtual machines on balenaOS
+Run Docker container images in Firecracker microVMs on balenaOS
 
 ## What is Firecracker?
 
 [Firecracker](https://github.com/firecracker-microvm/firecracker) is an open source virtualization technology that is purpose-built for creating and managing secure, multi-tenant container and function-based services that provide serverless operational models. Firecracker runs workloads in lightweight virtual machines, called microVMs, which combine the security and isolation properties provided by hardware virtualization technology with the speed and flexibility of containers.
 
-## Goals
+## What is firecracker-containerd?
 
-The main goal of this project is to create Firecracker virtual machines on a balenaOS host
-from inside a privileged service container.
+[firecracker-containerd](https://github.com/firecracker-microvm/firecracker-containerd) enables the use of a container runtime, containerd, to manage Firecracker microVMs.
 
-Additionally, the rootfs for the VM should be created from an existing Docker container image,
-downloaded and converted to raw format.
+> Potential use cases of Firecracker-based containers include:
+>
+> Sandbox a partially or fully untrusted third party container in its own microVM. This would reduce the likelihood of leaking secrets via the third party container, for example.
+> Bin-pack disparate container workloads on the same host, while maintaining a high level of isolation between containers. Because the overhead of Firecracker is low, the achievable container density per host should be comparable to running containers using kernel-based container runtimes, without the isolation compromise of such solutions. Multi-tenant hosts would particularly benefit from this use case.
 
-## Architecture & OS
+## Supported Devices
 
 Firecracker supports x86_64 and aarch64 Linux, see [specific supported kernels](https://github.com/firecracker-microvm/firecracker/blob/main/docs/kernel-policy.md).
-
-The provided Docker image must have an init system in place in order to serve as a rootfs.
-
-> The minimal init system would be just an ELF binary, placed at `/sbin/init`. The final step in the Linux boot process executes `/sbin/init` and expects it to never exit. More complex init systems build on top of this, providing service configuration files, startup / shutdown scripts for various services, and many other features.
 
 ### KVM
 
@@ -32,17 +29,22 @@ The presence of the KVM module can be checked with:
 lsmod | grep kvm
 ```
 
-An example output where it is enabled:
+## Usage
 
-```bash
-kvm_intel             348160  0
-kvm                   970752  1 kvm_intel
-irqbypass              16384  1 kvm
-```
+Set the env var `RUN_IMAGE` to the desired OCI-compliant container image and optionally provide a `RUN_COMMAND`.
+Runtime options can be provided via `EXTRA_RUN_OPTS` and `EXTRA_RUN_FLAGS`.
+For a full list of options execute `firecracker-ctr run --help` in the service shell.
+
+## Contributing
+
+Please open an issue or submit a pull request with any features, fixes, or changes.
 
 ## Resources
 
 - <https://actuated.dev/blog/kvm-in-github-actions>
 - <https://github.com/firecracker-microvm/firecracker/blob/main/docs/getting-started.md>
 - <https://github.com/firecracker-microvm/firecracker/blob/main/docs/rootfs-and-kernel-setup.md>
+- <https://github.com/firecracker-microvm/firecracker-containerd/blob/main/docs/getting-started.md>
 - <https://github.com/skatolo/nested-firecracker>
+- <https://docs.docker.com/storage/storagedriver/device-mapper-driver/#manage-devicemapper>
+- <https://github.com/kata-containers/kata-containers/blob/main/docs/how-to/how-to-use-kata-containers-with-firecracker.md>

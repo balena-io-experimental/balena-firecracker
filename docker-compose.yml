@@ -6,10 +6,11 @@ services:
     privileged: true
     tmpfs:
       - /tmp
+      - /run
+      - /var/run
+    tty: true
     volumes:
-      - files:/files
-    labels:
-      io.balena.features.balena-socket: 1
+      - data:/var/lib/firecracker-containerd
 
 volumes:
-  files: {}
+  data: {}

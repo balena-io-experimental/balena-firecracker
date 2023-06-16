@@ -1,0 +1,21 @@
+- commits:
+    - subject: Add Flowzone workflow for pull requests and pull request targets with
+        secrets inheritance.
+      hash: eaed4eeecab245a9992ab117fbbe52fb85c8f98f
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Kyle Harding
+    - subject: Build firecracker and containerd from source
+      hash: 8fbd83d95e97c94cca18a729f12cd98886d17ada
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.2
+  title: ""
+  date: 2023-06-16T17:07:13.519Z

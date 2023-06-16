@@ -30,3 +30,4 @@ jobs:
         }
       repo_config: true
       repo_description: "Run Docker container images in Firecracker microVMs on balenaOS"
+      repo_default_branch: main

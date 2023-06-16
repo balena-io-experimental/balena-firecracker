@@ -1,4 +1,17 @@
 - commits:
+    - subject: Fix default branch when applying repo settings
+      hash: 63b2544bbffbba87d456b160914b0ad7be5940e1
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.3
+  title: ""
+  date: 2023-06-16T17:30:13.561Z
+- commits:
     - subject: Add Flowzone workflow for pull requests and pull request targets with
         secrets inheritance.
       hash: eaed4eeecab245a9992ab117fbbe52fb85c8f98f

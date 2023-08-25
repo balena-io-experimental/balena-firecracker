@@ -31,8 +31,8 @@ lsmod | grep kvm
 
 ## Usage
 
-Set the env var `RUN_IMAGE` to the desired OCI-compliant container image and optionally provide a `RUN_COMMAND`.
-Runtime options can be provided via `EXTRA_RUN_OPTS` and `EXTRA_RUN_FLAGS`.
+Set the env var `FICD_IMAGE_TAG` to the desired OCI-compliant container image and optionally provide a `FICD_CMD`.
+Additional container runtime options can be provided via `FICD_EXTRA_OPTS`.
 For a full list of options execute `firecracker-ctr run --help` in the service shell.
 
 ## Contributing

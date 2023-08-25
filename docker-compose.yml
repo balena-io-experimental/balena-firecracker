@@ -10,7 +10,15 @@ services:
       - /var/run
     tty: true
     volumes:
-      - data:/var/lib/firecracker-containerd
+      - containerd:/var/lib/firecracker-containerd/containerd
+      - devmapper:/var/lib/firecracker-containerd/snapshotter/devmapper
+    environment:
+      FICD_IMAGE_TAG: docker.io/library/debian:latest
+      FICD_RUN_OPTIONS: --privileged --env DEBUG=true
+      FICD_RUN_COMMAND: /bin/sh -c
+      FICD_RUN_ARG_1: >
+        echo "Hello, World!" && sleep infinity
 
 volumes:
-  data: {}
+  containerd: {}
+  devmapper: {}

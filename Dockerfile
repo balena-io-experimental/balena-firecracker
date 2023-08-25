@@ -94,6 +94,7 @@ RUN apk add --no-cache \
     losetup \
     lsblk \
     pigz \
+    squashfs-tools \
     tini \
     util-linux-misc \
     uuidgen
@@ -124,5 +125,5 @@ ENTRYPOINT [ "/sbin/tini", "--" ]
 
 CMD [ "/app/start.sh" ]
 
-ENV FICD_IMAGE_TAG docker.io/library/busybox:latest
-ENV FICD_KEEP_ALIVE false
+ENV FICD_IMAGE_TAG docker.io/library/hello-world:latest
+ENV FICD_KEEP_ALIVE true

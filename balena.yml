@@ -1,12 +1,13 @@
 name: "balena-firecracker"
 type: "sw.application"
-version: 0.0.0
+version: 0.0.4
 description: >-
   Run Docker container images in Firecracker microVMs on balenaOS
 post-provisioning: >-
-  Set the env var `RUN_IMAGE` to the desired OCI-compliant container image and optionally provide a `RUN_COMMAND`.
-  Runtime options can be provided via `EXTRA_RUN_OPTS` and `EXTRA_RUN_FLAGS`.
-  For a full list of options execute `firecracker-ctr run --help` in the service shell.
+  Set the env var `RUN_IMAGE` to the desired OCI-compliant container image and
+  optionally provide a `RUN_COMMAND`. Runtime options can be provided via
+  `EXTRA_RUN_OPTS` and `EXTRA_RUN_FLAGS`. For a full list of options execute
+  `firecracker-ctr run --help` in the service shell.
 assets:
   repository:
     type: "blob.asset"

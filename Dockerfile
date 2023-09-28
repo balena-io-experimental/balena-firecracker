@@ -123,3 +123,6 @@ RUN chmod +x start.sh devmapper/*.sh
 ENTRYPOINT [ "/sbin/tini", "--" ]
 
 CMD [ "/app/start.sh" ]
+
+ENV FICD_IMAGE_TAG docker.io/library/busybox:latest
+ENV FICD_KEEP_ALIVE false

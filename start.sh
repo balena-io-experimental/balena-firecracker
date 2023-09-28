@@ -18,14 +18,18 @@ containerd_pid=$!
 # pull an image
 firecracker-ctr --address /run/firecracker-containerd/containerd.sock images pull \
     --snapshotter devmapper \
-    "${RUN_IMAGE:-"docker.io/library/busybox:latest"}"
+    "${FICD_IMAGE_TAG}"
 
-# start a container
-# shellcheck disable=SC2086
-exec firecracker-ctr --address /run/firecracker-containerd/containerd.sock run \
-    --snapshotter devmapper \
-    --runtime aws.firecracker \
-    --rm --net-host ${EXTRA_RUN_OPTS:-} ${EXTRA_RUN_FLAGS:-} \
-    "${RUN_IMAGE:-"docker.io/library/busybox:latest"}" "$(uuidgen)" ${RUN_COMMAND:-} ${EXTRA_RUN_ARGS:-}
+while true; do
+    # start a container
+    # shellcheck disable=SC2086
+    firecracker-ctr --address /run/firecracker-containerd/containerd.sock run \
+        --snapshotter devmapper \
+        --runtime aws.firecracker \
+        --rm --net-host ${FICD_EXTRA_OPTS:-} \
+        "${FICD_IMAGE_TAG}" "$(uuidgen)" ${FICD_CMD:-}
+
+    [[ ${FICD_KEEP_ALIVE,,} =~ true|yes|on|1 ]] || break
+done
 
 kill -9 "$containerd_pid"

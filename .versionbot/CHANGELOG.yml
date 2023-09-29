@@ -1,4 +1,18 @@
 - commits:
+    - subject: Add support for runtime secrets
+      hash: 858b915e9375aea5ba9a4e1308c24f3756a5a49e
+      body: ""
+      footer:
+        Change-type: minor
+        change-type: minor
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+      nested: []
+  version: 0.1.0
+  title: ""
+  date: 2023-09-29T20:23:33.339Z
+- commits:
     - subject: Automatically restart the container instead of exiting
       hash: c3691cd285389f344fe507cb9f25322c36826a50
       body: |

@@ -2,16 +2,15 @@ version: "2.4"
 
 services:
   sut:
-    build: .
+    extends:
+      file: docker-compose.yml
+      service: firecracker
     image: localhost:5000/sut
-    privileged: true
-    tmpfs:
-      - /tmp
-      - /run
-      - /var/run
-    tty: true
-    volumes:
-      - data:/var/lib/firecracker-containerd
     environment:
-      FICD_IMAGE_TAG: docker.io/library/hello-world:latest
+      FICD_IMAGE_TAG: docker.io/library/debian:latest
+      FICD_RUN_OPTIONS: --privileged --env DEBUG=true
+      FICD_RUN_COMMAND: /bin/sh -c
+      FICD_RUN_ARG_1: >
+        test "$(cat /run/secrets/secretkey)" = "secretvalue" && rm -v /run/secrets/*
+      FICD_SECRET_secretkey: secretvalue
       FICD_KEEP_ALIVE: false

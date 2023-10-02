@@ -17,7 +17,7 @@ RUN apk add --no-cache \
 
 # https://github.com/firecracker-microvm/firecracker-containerd
 RUN git clone --recurse-submodules https://github.com/firecracker-microvm/firecracker-containerd.git . && \
-    git checkout --quiet 051a16cc9fd754c91ccd12a3827664927e25ddcd
+    git checkout --quiet 2a60b1c50228f0d98eccc7e135e351c756edf2ba
 
 ###############################################
 
@@ -45,7 +45,8 @@ WORKDIR /containerd/tools/image-builder
 COPY --from=containerd /containerd/agent/agent ./files_ephemeral/usr/local/bin/agent
 COPY --from=runc /containerd/_submodules/runc/runc ./files_ephemeral/usr/local/bin/runc
 
-RUN mkdir -p tmp/rootfs && \
+RUN sed 's/bullseye/bookworm/g' -i Makefile Dockerfile.debian-image && \
+    mkdir -p tmp/rootfs && \
     make rootfs.img
 
 ###############################################

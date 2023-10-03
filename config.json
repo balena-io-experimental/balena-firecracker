@@ -1,14 +1,24 @@
 {
   "boot-source": {
-    "kernel_image_path": "/files/vmlinux.bin",
+    "kernel_image_path": "vmlinux.bin",
     "boot_args": "console=ttyS0 reboot=k panic=1 pci=off",
     "initrd_path": null
   },
   "drives": [
     {
       "drive_id": "rootfs",
-      "path_on_host": "/files/rootfs.ext4",
+      "path_on_host": "rootfs.ext4",
       "is_root_device": true,
+      "partuuid": null,
+      "is_read_only": false,
+      "cache_type": "Unsafe",
+      "io_engine": "Sync",
+      "rate_limiter": null
+    },
+    {
+      "drive_id": "data",
+      "path_on_host": "/data/datafs.ext4",
+      "is_root_device": false,
       "partuuid": null,
       "is_read_only": false,
       "cache_type": "Unsafe",
@@ -22,10 +32,12 @@
     "smt": false,
     "track_dirty_pages": false
   },
+  "cpu-config": null,
   "balloon": null,
   "network-interfaces": [],
   "vsock": null,
   "logger": null,
   "metrics": null,
-  "mmds-config": null
+  "mmds-config": null,
+  "entropy": null
 }

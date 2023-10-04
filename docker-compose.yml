@@ -13,7 +13,7 @@ services:
       - /run
       - /srv
     volumes:
-      - persistent-data:/data
+      - persistent-data:/jail/data
 
 volumes:
   persistent-data: {}

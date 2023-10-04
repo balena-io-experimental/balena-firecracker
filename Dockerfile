@@ -61,11 +61,12 @@ RUN apt-get update \
     iptables \
     jq \
     procps \
+    rsync \
     uuid-runtime \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=kernel /src/vmlinux.bin ./
 COPY --from=firecracker /usr/local/bin/* /usr/local/bin/
+COPY --from=kernel /src/vmlinux.bin /jail/boot/vmlinux.bin
 
 RUN addgroup --system firecracker \
     && adduser --system firecracker --ingroup firecracker \
@@ -74,33 +75,92 @@ RUN addgroup --system firecracker \
 RUN firecracker --version \
     && jailer --version
 
+COPY overlay ./overlay
 COPY start.sh config.json ./
 
-RUN chmod +x start.sh
+RUN chmod +x start.sh overlay/sbin/init overlay/usr/local/bin/fcnet-setup.sh
 
 CMD [ "/usr/src/app/start.sh" ]
 
+ENV CMD curl http://artscene.textfiles.com/asciiart/unicorn
+
 ###############################################
 
-FROM alpine:3.18 AS example-rootfs
+FROM alpine:3.18 AS alpine-rootfs
 
-WORKDIR /src
+# WORKDIR /src
 
-# hadolint ignore=DL3018
-RUN apk add --no-cache openrc util-linux
+# # hadolint ignore=DL3018
+# RUN apk add --no-cache openrc util-linux
 
-# Set up a login terminal on the serial console (ttyS0)
-RUN ln -s agetty /etc/init.d/agetty.ttyS0 \
-    && echo ttyS0 > /etc/securetty \
-    && rc-update add agetty.ttyS0 default
+# # Set up a login terminal on the serial console (ttyS0)
+# RUN ln -s agetty /etc/init.d/agetty.ttyS0 \
+#     && echo ttyS0 > /etc/securetty \
+#     && rc-update add agetty.ttyS0 default
 
-# Make sure special file systems are mounted on boot
-RUN rc-update add devfs boot \
-    && rc-update add procfs boot \
-    && rc-update add sysfs boot
+# # Make sure special file systems are mounted on boot
+# RUN rc-update add devfs boot \
+#     && rc-update add procfs boot \
+#     && rc-update add sysfs boot
 
-# Create a tarball of the root file system
-RUN tar cf /rootfs.tar /bin /etc /lib /root /sbin /usr
+# # Create a tarball of the root file system
+# RUN tar cf /rootfs.tar /bin /etc /lib /root /sbin /usr
+
+###############################################
+
+# Use the official Ubuntu image as a base
+FROM ubuntu:jammy AS ubuntu-rootfs
+
+# Install the necessary packages
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl iproute2 iputils-ping bind9-dnsutils \
+    && rm -rf /var/lib/apt/lists/*
+
+# # Set environment variables to avoid prompts
+# ENV DEBIAN_FRONTEND=noninteractive
+
+# # Install the necessary packages
+# # hadolint ignore=DL3008
+# RUN apt-get update \
+#     && apt-get install -y --no-install-recommends curl systemd systemd-sysv \
+#     && rm -rf /var/lib/apt/lists/*
+
+# # Remove unnecessary services
+# RUN find /etc/systemd/system \
+#         /lib/systemd/system \
+#         \( \
+#         -name "*udev*" \
+#         -o -name "*resolved*" \
+#         -o -name "*logind*" \
+#         -o -name "*getty*" \
+#         -o -name "*networkd*" \
+#         \) \
+#         -exec rm -f {} \;
+
+# # Set systemd as the entrypoint
+# STOPSIGNAL SIGRTMIN+3
+# CMD [ "/sbin/init" ]
+
+# # Set up necessary mount points
+# VOLUME [ "/sys/fs/cgroup" ]
+
+# # Copy the updated systemd service file
+# COPY entrypoint.service /etc/systemd/system/entrypoint.service
+# RUN systemctl enable entrypoint.service
+
+# COPY init /init
+# RUN chmod +x /init
+
+###############################################
+
+FROM ghcr.io/product-os/self-hosted-runners:v3.3.3 AS self-hosted-runners
+
+# Install the necessary packages
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl iproute2 iputils-ping bind9-dnsutils \
+    && rm -rf /var/lib/apt/lists/*
 
 ###############################################
 
@@ -108,4 +168,13 @@ RUN tar cf /rootfs.tar /bin /etc /lib /root /sbin /usr
 FROM jailer AS runtime
 
 # Copy the root file system tarball into the firecracker runtime image
-COPY --from=example-rootfs /rootfs.tar ./
+# COPY --from=ubuntu-rootfs /rootfs.tar ./
+
+# WORKDIR /rootfs
+
+COPY --from=ubuntu-rootfs / /usr/src/app/rootfs/
+
+# Create a tarball of the root file system
+# RUN tar cf /usr/src/app/rootfs.tar ./
+
+# ENV CMD exec /init

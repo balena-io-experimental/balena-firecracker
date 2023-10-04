@@ -103,8 +103,8 @@ to `/usr/src/app/config.json` or via the env vars `VCPU_COUNT` and `MEM_SIZE_MIB
 The rootfs is recreated on every run, so anything written to the rootfs will not persist and
 is considered ephemeral like container layers.
 
-However an additional data filesystem will be created at `/data/datafs.ext4` for optional use,
-and it can be made persistent by mounting a container volume to `/data`.
+However an additional data drive will be created at `/datafs/datafs.ext4` for optional use,
+and it can be made persistent by mounting a container volume to `/datafs`.
 
 ## Contributing
 

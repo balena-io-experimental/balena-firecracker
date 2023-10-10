@@ -1,14 +1,5 @@
 #!/bin/sh
 
-# Function to handle exit logic
-cleanup() {
-    exit_code=$?
-    exit $exit_code
-}
-
-# Trap signals: SIGINT 2, SIGTERM 15
-trap 'cleanup' 2 15
-
 exec 1>/dev/console
 exec 2>/dev/console
 
@@ -25,23 +16,8 @@ mount -o remount,rw,exec tmpfs /var/run
 # https://github.com/firecracker-microvm/firecracker/blob/main/resources/overlay/usr/local/bin/fcnet-setup.sh
 /usr/local/bin/fcnet-setup.sh
 
-set -a
-# Export secrets to the environment and remove the secrets file
-if [ -f /var/secrets ];
-then
-    # shellcheck disable=SC1091
-    . /var/secrets
-    cat /var/secrets
-    rm -f /var/secrets
-fi
-set +a
-
-# shellcheck disable=SC2086
-${ENTRYPOINT} ${CMD}
-
-# while true; do
-#     wait
-# done
-
-# Cleanup and shut down the VM after the command exits
-cleanup
+# Export secrets to the environment and remove the files
+for f in /var/secrets/*; do
+    eval "export $(basename "${f}")=$(cat "${f}")"
+    rm -f "${f}"
+done

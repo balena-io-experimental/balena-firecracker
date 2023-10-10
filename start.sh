@@ -6,6 +6,9 @@
 
 set -eu
 
+# Store the arguments in an array
+args=("$@")
+
 # The jailer will use this id to create a unique chroot directory for the MicroVM
 # among other things.
 id="$(uuidgen)"
@@ -113,28 +116,20 @@ remount_tmpfs_exec() {
 }
 
 write_ctr_secrets() {
-    echo "Writing secrets file..."
+    echo "Writing secrets to rootfs..."
 
-    mkdir -p "$(dirname "${1}")"
+    local secrets_root="${1}"
+
+    mkdir -p "${secrets_root}"
 
     # Loop through all environment variables
     for var in $(compgen -e); do
         # Check if the variable starts with "CTR_"
         if [[ $var == CTR_* ]]; then
             # Remove the "CTR_" prefix and write the variable and its value to the secrets file
-            echo "${var#CTR_}=${!var}" >>"${1}"
+            echo "${!var}" >"${secrets_root}/${var#CTR_}"
         fi
     done
-}
-
-resolve_init_vars() {
-    local init_script="${1}"
-
-    envsubst <"${init_script}" >"${init_script}.tmp"
-    mv "${init_script}.tmp" "${init_script}"
-    chmod +x "${init_script}"
-
-    # cat "${init_script}"
 }
 
 populate_rootfs() {
@@ -156,14 +151,14 @@ populate_rootfs() {
     rsync -a "${src_rootfs}"/ "${rootfs_mnt}"/
     for dir in dev proc run sys var; do mkdir -p "${rootfs_mnt}/${dir}"; done
 
-    # rsync -a --keep-dirlinks --ignore-existing /usr/src/app/overlay/ "${rootfs_mnt}/"
-
-    # alpine already has /sbin/init that we should replace
+    # alpine already has /sbin/init that we should replace, otherwise
+    # we would probably use --ignore-existing as well
     rsync -a --keep-dirlinks /usr/src/app/overlay/ "${rootfs_mnt}/"
 
-    resolve_init_vars "${rootfs_mnt}/sbin/init"
-
     write_ctr_secrets "${rootfs_mnt}/var/secrets"
+
+    # write the CMD to the end of the init script
+    echo "exec ${args[*]}" >>"${rootfs_mnt}/sbin/init"
 
     umount "${rootfs_mnt}"
 
@@ -287,12 +282,15 @@ enable_forwarding
 apply_routing
 
 echo "Creating jailer chroot..."
-mkdir -p "${chroot_dir}"
-mount --bind /jail "${chroot_dir}"
+mkdir -p "${chroot_dir}"/boot
+mkdir -p "${chroot_dir}"/data
+
+mount --bind /jail/boot "${chroot_dir}"/boot
+mount --bind /jail/data "${chroot_dir}"/data
 
 populate_rootfs /usr/src/app/rootfs "${chroot_dir}"/boot/rootfs.ext4
 populate_datafs "${chroot_dir}"/data/datafs.ext4
-prepare_config /usr/src/app/config.json "${chroot_dir}"/config.json
+prepare_config /usr/src/app/config.json "${chroot_dir}"/boot/config.json
 create_logs_fifo "${chroot_dir}"/logs.fifo /dev/stdout
 
 # /usr/local/bin/firecracker --help
@@ -306,5 +304,5 @@ echo "Starting firecracker via jailer..."
     --gid "$(id -g firecracker)" \
     -- \
     --api-sock /run/firecracker.socket \
-    --config-file config.json \
+    --config-file /boot/config.json \
     --log-path logs.fifo

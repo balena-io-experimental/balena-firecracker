@@ -78,11 +78,14 @@ RUN firecracker --version \
 COPY overlay ./overlay
 COPY start.sh config.json ./
 
-RUN chmod +x start.sh overlay/sbin/init overlay/usr/local/bin/fcnet-setup.sh
+RUN chmod +x start.sh overlay/sbin/* overlay/usr/local/bin/*
 
-CMD [ "/usr/src/app/start.sh" ]
+ENTRYPOINT [ "/usr/src/app/start.sh" ]
 
-ENV CMD curl http://artscene.textfiles.com/asciiart/unicorn
+# Default command to exec after init.
+# This should be a long-running process or service, and get overriden by the user.
+# hadolint ignore=DL3025
+CMD 'curl http://artscene.textfiles.com/asciiart/unicorn && sleep infinity'
 
 ###############################################
 
@@ -106,16 +109,13 @@ FROM alpine:3.18 AS alpine-rootfs
 # # Create a tarball of the root file system
 # RUN tar cf /rootfs.tar /bin /etc /lib /root /sbin /usr
 
+# hadolint ignore=DL3018
+RUN apk add --no-cache curl iproute2
+
 ###############################################
 
 # Use the official Ubuntu image as a base
 FROM ubuntu:jammy AS ubuntu-rootfs
-
-# Install the necessary packages
-# hadolint ignore=DL3008
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl iproute2 iputils-ping bind9-dnsutils \
-    && rm -rf /var/lib/apt/lists/*
 
 # # Set environment variables to avoid prompts
 # ENV DEBIAN_FRONTEND=noninteractive
@@ -152,29 +152,30 @@ RUN apt-get update \
 # COPY init /init
 # RUN chmod +x /init
 
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl iproute2 \
+    && rm -rf /var/lib/apt/lists/*
+
 ###############################################
 
 FROM ghcr.io/product-os/self-hosted-runners:v3.3.3 AS self-hosted-runners
 
-# Install the necessary packages
 # hadolint ignore=DL3008
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl iproute2 iputils-ping bind9-dnsutils \
+    && apt-get install -y --no-install-recommends curl iproute2 \
     && rm -rf /var/lib/apt/lists/*
+
+CMD [ "/init" ]
 
 ###############################################
 
 # Include firecracker wrapper and scripts
 FROM jailer AS runtime
 
-# Copy the root file system tarball into the firecracker runtime image
-# COPY --from=ubuntu-rootfs /rootfs.tar ./
+# Copy the root file system from your container final stage
+COPY --from=alpine-rootfs / /usr/src/app/rootfs/
+# COPY --from=ubuntu-rootfs / /usr/src/app/rootfs/
+# COPY --from=self-hosted-runners / /usr/src/app/rootfs/
 
-# WORKDIR /rootfs
-
-COPY --from=ubuntu-rootfs / /usr/src/app/rootfs/
-
-# Create a tarball of the root file system
-# RUN tar cf /usr/src/app/rootfs.tar ./
-
-# ENV CMD exec /init
+CMD 'curl http://artscene.textfiles.com/asciiart/unicorn ; echo $SECRET_KEY ; sleep infinity'

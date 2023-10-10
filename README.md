@@ -1,4 +1,4 @@
-# balena-firecracker
+# Container Jailer
 
 Append this build stage to your existing container image to automatically run as a microVM with Firecracker!
 
@@ -7,6 +7,8 @@ Append this build stage to your existing container image to automatically run as
 [Firecracker](https://firecracker-microvm.github.io/) is an open source virtualization technology that is purpose-built for creating and managing secure, multi-tenant container and function-based services that provide serverless operational models. Firecracker runs workloads in lightweight virtual machines, called microVMs, which combine the security and isolation properties provided by hardware virtualization technology with the speed and flexibility of containers.
 
 ## Requirements
+
+### Kernel Modules
 
 Firecracker supports x86_64 and AARCH64 Linux, see [specific supported kernels](https://github.com/firecracker-microvm/firecracker/blob/main/docs/kernel-policy.md).
 
@@ -18,26 +20,43 @@ The presence of the KVM module can be checked with:
 lsmod | grep kvm
 ```
 
-As such, the following device types have been tested:
+### balenaOS Devices
+
+balenaOS is not a requirement of this project, but it is well suited to container-based operating systems.
+
+The following device types have been tested with balenaOS as they have the required kernel modules.
 
 - Generic x86_64 (GPT)
 - Generic AARCH64
+
+### Guest Container
+
+Guest containers based on Alpine, Debian, and Ubuntu have been tested and must include the following packages
+available from a shell.
+
+- `sh`
+- `ip` via `iproute2`
+- `mount`
+- `awk`
+
+Distroless containers are not expected to work as the kernel init binary is a shell script.
 
 ## Getting Started
 
 Add the following lines to the end of your existing Dockerfile for publishing.
 
 ```Dockerfile
-# The rest of your docker instructions up here...
-
-# Create a tarball of your app's root file system
-RUN tar cf /rootfs.tar /bin /etc /lib /root /sbin /usr
+# The rest of your docker instructions up here AS my-rootfs
 
 # Include firecracker wrapper and scripts
-FROM ghcr.io/balena-io/fc-jailer AS runtime
+FROM ghcr.io/balena-io/ctr-jailer AS runtime
 
-# Copy the root file system tarball into the firecracker runtime image
-COPY --from=rootfs /src/rootfs.tar ./
+# Copy the root file system from your container final stage
+COPY --from=my-rootfs / /usr/src/app/rootfs
+
+# Provide your desired command to exec after init.
+# Setting your own ENTRYPOINT is unsupported, use the CMD field only.
+CMD /start.sh
 ```
 
 Then you can publish your container image as you normally would via container registries
@@ -72,19 +91,18 @@ Reference: <https://github.com/firecracker-microvm/firecracker/blob/main/docs/ge
 
 ## Usage
 
-### Secrets
+### Environment Variables
 
-Since traditional container environment variables are not available in the VM, we've added
-a step to inject them into the VM rootfs where they can be sourced or exported at runtime.
+Since traditional container environment variables are not available in the VM, this wrapper will
+inject them into the VM rootfs and export them at runtime.
 
-Provide environment variables or secrets with the `CTR_` prefix and they will be written to
-`/var/secrets` at runtime.
+Provide environment variables or secrets with the `CTR_` prefix, like `CTR_SECRETKEY=secretvalue`.
 
 If the values have spaces, or special characters, it is recommended to encode your secret values
 with `base64` and have your init service decode them.
 
-Your init service can optionally delete the secrets file after sourcing, leaving the VM in
-a clean state with no secrets.
+After being exported to the running process, the files are removed so they can safely
+be used for secrets if the init stage of your service runs `unset` after using them.
 
 ### Networking
 
@@ -92,19 +110,21 @@ A TAP/TUN device will be automatically created for the guest to have network acc
 
 Reference: <https://github.com/firecracker-microvm/firecracker/blob/main/docs/network-setup.md>
 
+Because of this, the container jailer wrapper must be run in host networking mode.
+
 ### Resources
 
-Resources like virtual CPUs and Memory can be overprovisioned and increased by mounting a custom
-[VM config](https://github.com/firecracker-microvm/firecracker/blob/main/tests/framework/vm_config.json)
-to `/usr/src/app/config.json` or via the env vars `VCPU_COUNT` and `MEM_SIZE_MIB`.
+Resources like virtual CPUs and Memory can be overprovisioned and adjusted
+via the env vars `VCPU_COUNT` and `MEM_SIZE_MIB`.
+The default is the maximum available on the host.
 
 ### Persistent Storage
 
 The rootfs is recreated on every run, so anything written to the rootfs will not persist and
 is considered ephemeral like container layers.
 
-However an additional data drive will be created at `/datafs/datafs.ext4` for optional use,
-and it can be made persistent by mounting a container volume to `/datafs`.
+However an additional data drive will be created for optional use
+and it can be made persistent by mounting a container volume to `/jail/data`.
 
 ## Contributing
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
@@ -10,21 +10,24 @@
 # assign the next available MAC.
 # The IP is obtained by converting the last 4 hexa groups of the MAC into decimals.
 
+set -e
+
 main() {
-    devs=$(ls /sys/class/net | grep -v lo)
-    for dev in $devs; do
-        mac_ip=$(ip link show dev $dev \
-            | grep link/ether \
-            | grep -Po "(?<=52:54:)([0-9a-f]{2}:?){4}"
+    for dev in /sys/class/net/*; do
+        dev="$(basename "$dev")"
+        case $dev in
+        *lo) continue ;;
+        esac
+        mac_ip=$(
+            ip link show dev "$dev" |
+                awk '/link\/ether/ {print $2}' |
+                awk -F: '{print $3$4$5$6}'
         )
-        ip=$(printf "%d.%d.%d.%d" $(echo "0x${mac_ip}" | sed "s/:/ 0x/g"))
-        ip addr add "$ip/30" dev $dev
-        ip link set $dev up
-        ip route add default via ${ip%?}1 dev $dev
+        ip=$(printf "%d.%d.%d.%d" 0x${mac_ip:0:2} 0x${mac_ip:2:2} 0x${mac_ip:4:2} 0x${mac_ip:6:2})
+        ip addr add "$ip/30" dev "$dev"
+        ip link set "$dev" up
+        ip route add default via "${ip%?}1" dev "$dev"
     done
 }
 
 main
-
-# ping -c 4 ${ip%?}1
-# ping -c 4 1.1.1.1

@@ -34,7 +34,7 @@ find_next_tap_device() {
 
     i=0
     while true; do
-        _tap_dev="tap$i"
+        _tap_dev="fc-tap$i"
         if ! ip link show "$_tap_dev" >/dev/null 2>&1; then
 
             ip_octet3="$((i % 256))"
@@ -46,6 +46,12 @@ find_next_tap_device() {
         i=$((i + 1))
     done
 }
+
+# Check for hardware acceleration
+if ! ls /usr/src/app/rootfs &>/dev/null; then
+    echo "Root Filesystem not found in /usr/src/app/rootfs. Did you forget to COPY it?"
+    sleep infinity
+fi
 
 # Network settings
 # guest_mac="$(printf '52:54:00:%02X:%02X:%02X\n' $((RANDOM % 256)) $((RANDOM % 256)) $((RANDOM % 256)))"
@@ -61,7 +67,7 @@ echo "Host Device Name: ${tap_dev}"
 # Check for hardware acceleration
 if ! ls /dev/kvm &>/dev/null; then
     echo "KVM hardware acceleration unavailable. Pass --device /dev/kvm in your Docker run command."
-    exit 1
+    sleep infinity
 fi
 
 # Set default cores to same as system if not specified
@@ -91,6 +97,13 @@ if [ -z "${KERNEL_BOOT_ARGS:-}" ]; then
         KERNEL_BOOT_ARGS="keep_bootcon ${KERNEL_BOOT_ARGS}"
     fi
 fi
+
+# set -x
+
+# MASK_LONG="$(ipcalc -nb "${guest_subnet}" | awk '/^Netmask:/ {print $2}')"
+# KERNEL_BOOT_ARGS="${KERNEL_BOOT_ARGS} ip=${tap_ip%????}2::${tap_ip%???}:${MASK_LONG}::${iface_id}:off"
+
+# set +x
 
 echo "Virtual CPUs: ${VCPU_COUNT}"
 echo "Memory: ${MEM_SIZE_MIB}M"
@@ -157,8 +170,15 @@ populate_rootfs() {
 
     write_ctr_secrets "${rootfs_mnt}/var/secrets"
 
-    # write the CMD to the end of the init script
-    echo "exec ${args[*]}" >>"${rootfs_mnt}/sbin/init"
+    # Check that at least one arg was passed
+    if [ ${#args[@]} -eq 0 ]; then
+        # write the CMD to the end of the init script
+        echo "exec /usr/local/bin/usage.sh" >>"${rootfs_mnt}/sbin/init"
+    else
+        # write the CMD to the end of the init script
+        echo "Injecting CMD: ${args[*]}"
+        echo "exec ${args[*]}" >>"${rootfs_mnt}/sbin/init"
+    fi
 
     umount "${rootfs_mnt}"
 
@@ -196,7 +216,7 @@ prepare_config() {
     jq ".\"machine-config\".mem_size_mib = ${MEM_SIZE_MIB}" "${dst_config}" >"${dst_config}".tmp
     mv "${dst_config}".tmp "${dst_config}"
 
-    jq ".\"network-interfaces\"[0].iface_id = \"${iface_id}\"" "${dst_config}" >"${dst_config}".tmp
+    jq ".\"network-interfaces\"[0].iface_id = \"eth0\"" "${dst_config}" >"${dst_config}".tmp
     mv "${dst_config}".tmp "${dst_config}"
 
     jq ".\"network-interfaces\"[0].guest_mac = \"${guest_mac}\"" "${dst_config}" >"${dst_config}".tmp
@@ -219,13 +239,10 @@ create_tap_device() {
     ip tuntap add dev "${tap_dev}" mode tap
     ip addr add "${tap_ip}" dev "${tap_dev}"
     ip link set dev "${tap_dev}" up
-}
 
-enable_forwarding() {
-    echo "Enabling ip forwarding..."
-
-    # enable forwarding
     sysctl -w net.ipv4.ip_forward=1
+    sysctl -w net.ipv4.conf.${tap_dev}.proxy_arp=1
+    sysctl -w net.ipv6.conf.${tap_dev}.disable_ipv6=1
 }
 
 apply_routing() {
@@ -236,13 +253,14 @@ apply_routing() {
 
     # create rules
     iptables-legacy -t nat -A POSTROUTING -o "${iface_id}" -j MASQUERADE -m comment --comment "${tap_dev}"
-    iptables-legacy -I FORWARD 1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT -m comment --comment "${tap_dev}"
-    iptables-legacy -I FORWARD 1 -i "${tap_dev}" -o "${iface_id}" -j ACCEPT -m comment --comment "${tap_dev}"
+    # iptables-legacy -I FORWARD 1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT -m comment --comment "${tap_dev}"
+    # iptables-legacy -I FORWARD 1 -i "${tap_dev}" -o "${iface_id}" -j ACCEPT -m comment --comment "${tap_dev}"
 
-    # iptables-legacy-save | grep 'comment ctr-jailer'
+    iptables-legacy -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT -m comment --comment "${tap_dev}"
+    iptables-legacy -A FORWARD -i "${tap_dev}" -o "${iface_id}" -j ACCEPT -m comment --comment "${tap_dev}"
 
-    # iptables-legacy -L -n -v
-    # iptables-legacy -t nat -L -n -v
+    # iptables-legacy -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+    # iptables-legacy -A OUTPUT -p tcp --sport 443 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 }
 
 create_logs_fifo() {
@@ -278,12 +296,11 @@ trap cleanup EXIT
 remount_tmpfs_exec "$(dirname "${chroot_base}")"
 
 create_tap_device
-enable_forwarding
 apply_routing
 
 echo "Creating jailer chroot..."
-mkdir -p "${chroot_dir}"/boot
-mkdir -p "${chroot_dir}"/data
+mkdir -p /jail/boot "${chroot_dir}"/boot
+mkdir -p /jail/data "${chroot_dir}"/data
 
 mount --bind /jail/boot "${chroot_dir}"/boot
 mount --bind /jail/data "${chroot_dir}"/data
@@ -295,6 +312,9 @@ create_logs_fifo "${chroot_dir}"/logs.fifo /dev/stdout
 
 # /usr/local/bin/firecracker --help
 
+# tcpdump -i "${tap_dev}" -nnv &
+# tcpdump -i any -nnv &
+
 echo "Starting firecracker via jailer..."
 # https://github.com/firecracker-microvm/firecracker/blob/main/docs/jailer.md
 /usr/local/bin/jailer --id "${id}" \
@@ -303,6 +323,6 @@ echo "Starting firecracker via jailer..."
     --uid "$(id -u firecracker)" \
     --gid "$(id -g firecracker)" \
     -- \
-    --api-sock /run/firecracker.socket \
+    --no-api \
     --config-file /boot/config.json \
     --log-path logs.fifo

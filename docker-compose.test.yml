@@ -2,7 +2,46 @@ version: "2.4"
 
 services:
   sut:
+    image: alpine:3.18
+    depends_on:
+      - alpine-rootfs
+      - debian-rootfs
+      - ubuntu-rootfs
+    volumes:
+      - data-1:/data-1
+      - data-2:/data-2
+      - data-3:/data-3
+    command:
+      - sh
+      - -c
+      - |
+        ls -a /data-?/*
+
+  alpine-rootfs:
     extends:
       file: docker-compose.yml
       service: firecracker
-    image: localhost:5000/sut
+    build: ./test/alpine
+    volumes:
+      - data-1:/jail/data
+
+  debian-rootfs:
+    extends:
+      file: docker-compose.yml
+      service: firecracker
+    build: ./test/debian
+    volumes:
+      - data-2:/jail/data
+
+  ubuntu-rootfs:
+    extends:
+      file: docker-compose.yml
+      service: firecracker
+    build: ./test/ubuntu
+    volumes:
+      - data-3:/jail/data
+
+volumes:
+  data-1: {}
+  data-2: {}
+  data-3: {}

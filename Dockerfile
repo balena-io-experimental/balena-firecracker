@@ -51,6 +51,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+    bridge-utils \
     ca-certificates \
     curl \
     e2fsprogs \
@@ -62,6 +63,7 @@ RUN apt-get update \
     jq \
     procps \
     rsync \
+    tcpdump \
     uuid-runtime \
     && rm -rf /var/lib/apt/lists/*
 
@@ -82,100 +84,44 @@ RUN chmod +x start.sh overlay/sbin/* overlay/usr/local/bin/*
 
 ENTRYPOINT [ "/usr/src/app/start.sh" ]
 
-# Default command to exec after init.
-# This should be a long-running process or service, and get overriden by the user.
-# hadolint ignore=DL3025
-CMD 'curl http://artscene.textfiles.com/asciiart/unicorn && sleep infinity'
-
 ###############################################
 
-FROM alpine:3.18 AS alpine-rootfs
-
-# WORKDIR /src
+# # This is a stage we use for testing with livepush as it
+# # includes an example rootfs.
+# FROM alpine:3.18 AS test-rootfs
 
 # # hadolint ignore=DL3018
-# RUN apk add --no-cache openrc util-linux
+# RUN apk add --no-cache bash ca-certificates curl iproute2
 
-# # Set up a login terminal on the serial console (ttyS0)
-# RUN ln -s agetty /etc/init.d/agetty.ttyS0 \
-#     && echo ttyS0 > /etc/securetty \
-#     && rc-update add agetty.ttyS0 default
+# # Include firecracker wrapper and scripts
+# FROM jailer AS test-jailer
 
-# # Make sure special file systems are mounted on boot
-# RUN rc-update add devfs boot \
-#     && rc-update add procfs boot \
-#     && rc-update add sysfs boot
-
-# # Create a tarball of the root file system
-# RUN tar cf /rootfs.tar /bin /etc /lib /root /sbin /usr
-
-# hadolint ignore=DL3018
-RUN apk add --no-cache curl iproute2
+# # Use livepush directives to conditionally run this test stage
+# # for livepush, but not for default builds used in publishing.
+# #dev-copy= --from=test-rootfs / /usr/src/app/rootfs/
+# #dev-cmd-live=/usr/local/bin/usage.sh
 
 ###############################################
 
-# Use the official Ubuntu image as a base
-FROM ubuntu:jammy AS ubuntu-rootfs
-
-# # Set environment variables to avoid prompts
-# ENV DEBIAN_FRONTEND=noninteractive
-
-# # Install the necessary packages
-# # hadolint ignore=DL3008
-# RUN apt-get update \
-#     && apt-get install -y --no-install-recommends curl systemd systemd-sysv \
-#     && rm -rf /var/lib/apt/lists/*
-
-# # Remove unnecessary services
-# RUN find /etc/systemd/system \
-#         /lib/systemd/system \
-#         \( \
-#         -name "*udev*" \
-#         -o -name "*resolved*" \
-#         -o -name "*logind*" \
-#         -o -name "*getty*" \
-#         -o -name "*networkd*" \
-#         \) \
-#         -exec rm -f {} \;
-
-# # Set systemd as the entrypoint
-# STOPSIGNAL SIGRTMIN+3
-# CMD [ "/sbin/init" ]
-
-# # Set up necessary mount points
-# VOLUME [ "/sys/fs/cgroup" ]
-
-# # Copy the updated systemd service file
-# COPY entrypoint.service /etc/systemd/system/entrypoint.service
-# RUN systemctl enable entrypoint.service
-
-# COPY init /init
-# RUN chmod +x /init
+# This is a stage we use for testing with livepush as it
+# includes an example rootfs.
+FROM debian:bookworm AS test-rootfs
 
 # hadolint ignore=DL3008
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl iproute2 \
+    && apt-get install -y --no-install-recommends curl iproute2 iputils-ping openssl tcpdump ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-
-###############################################
-
-FROM ghcr.io/product-os/self-hosted-runners:v3.3.3 AS self-hosted-runners
-
-# hadolint ignore=DL3008
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl iproute2 \
-    && rm -rf /var/lib/apt/lists/*
-
-CMD [ "/init" ]
-
-###############################################
 
 # Include firecracker wrapper and scripts
-FROM jailer AS runtime
+FROM jailer AS test-jailer
 
-# Copy the root file system from your container final stage
-COPY --from=alpine-rootfs / /usr/src/app/rootfs/
-# COPY --from=ubuntu-rootfs / /usr/src/app/rootfs/
-# COPY --from=self-hosted-runners / /usr/src/app/rootfs/
+# Use livepush directives to conditionally run this test stage
+# for livepush, but not for default builds used in publishing.
+#dev-copy= --from=test-rootfs / /usr/src/app/rootfs/
+#dev-cmd-live=/usr/local/bin/usage.sh
 
-CMD 'curl http://artscene.textfiles.com/asciiart/unicorn ; echo $SECRET_KEY ; sleep infinity'
+###############################################
+
+# This is the stage we want to publish, but it has no rootfs
+# so we can't use it for livepush testing.
+FROM jailer AS default

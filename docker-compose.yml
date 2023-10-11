@@ -7,14 +7,10 @@ services:
     # but permissions are dropped to a chroot in order to start your VM
     privileged: true
     network_mode: host
-    # Optionally run the VM rootfs and kernel in-memory to save storage wear
+    # Optionally run the VM jail in-memory to save storage wear
     tmpfs:
       - /tmp
       - /run
       - /srv
-    volumes:
-      - persistent-data:/jail/data
-
-volumes:
-  persistent-data: {}
-  
+    environment:
+      - CTR_SECRET_KEY=secretvalue

@@ -1,6 +1,6 @@
 name: "balena-firecracker"
 type: "sw.application"
-version: 0.1.0
+version: 0.1.1
 description: >-
   Run Docker container images in Firecracker microVMs on balenaOS
 post-provisioning: >-
